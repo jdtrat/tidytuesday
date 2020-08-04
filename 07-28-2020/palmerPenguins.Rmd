@@ -1,0 +1,144 @@
+---
+title: "Palmer Penguins"
+author: "Jonathan Trattner"
+date: "7/29/2020"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    theme: journal
+    highlight: monochrome
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+tuesdata <- tidytuesdayR::tt_load('2020-07-28')
+
+```
+
+## Tidy the raw penguin data
+
+```{r tidy data}
+
+raw <- tuesdata$penguins_raw %>%
+  select(id = `Individual ID`, 
+         Sex,
+         Species,
+         Island,
+         `Culmen Length (mm)`:`Delta 13 C (o/oo)`) %>% 
+  drop_na() %>%
+  clean_names() %>%
+  rename(nitro = delta_15_n_o_oo,
+         carbon = delta_13_c_o_oo) %>%
+  mutate(species = case_when(str_detect(species, "Adelie") ~ "Adelie",
+                             str_detect(species, "Chinstrap") ~ "Chinstrap",
+                             str_detect(species, "Gentoo") ~ "Gentoo"))
+```
+
+## Generate Plots
+
+```{r plot theme setup}
+
+# probs a better way to do this but alas
+penguinTheme <- function(changeLegendPos = FALSE) {
+  
+  if (changeLegendPos) {
+  theme(legend.position = c(0.9, 0.2),
+        panel.background = element_blank(),
+        axis.line = element_line(color = "black"),
+        plot.title = element_text(hjust=0.5, 
+                                  face = "bold.italic", 
+                                  size=16), #plot title aesthetics
+        plot.subtitle = element_text(hjust = 0.5, face = "bold", size = 12), #plot subtitle aesthetics
+        axis.title.x = element_text(size = 12, color= "black", face = "bold"), #x axis title aesthetics
+        axis.title.y = element_text(size = 12, color= "black", face = "bold"), #y axis title aesthetics
+        axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12),
+        legend.title = element_text(size= 14, color = "black", face = "bold"),
+        legend.title.align = 0.5,
+        legend.text = element_text(size = 10, color = "black", face = "bold"),
+        legend.text.align = 0)
+    
+  }else {
+    theme(panel.background = element_blank(),
+        axis.line = element_line(color = "black"),
+        plot.title = element_text(hjust=0.5, 
+                                  face = "bold.italic", 
+                                  size=16), #plot title aesthetics
+        plot.subtitle = element_text(hjust = 0.5, face = "bold", size = 12), #plot subtitle aesthetics
+        axis.title.x = element_text(size = 12, color= "black", face = "bold"), #x axis title aesthetics
+        axis.title.y = element_text(size = 12, color= "black", face = "bold"), #y axis title aesthetics
+        axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12),
+        legend.title = element_text(size= 14, color = "black", face = "bold"),
+        legend.title.align = 0.5,
+        legend.text = element_text(size = 10, color = "black", face = "bold"),
+        legend.text.align = 0)
+  }
+  
+}
+
+```
+
+### Flipper and Bill Length Plot
+
+```{r flipper bill length plot, message = FALSE, warning = FALSE}
+
+raw %>% 
+  ggplot(aes(x = flipper_length_mm, y = culmen_length_mm, color = species, shape = species)) +
+  geom_point(size = 2.5) + 
+  geom_smooth(method = "lm", 
+              se = FALSE) +
+  labs(x = "Flipper Length (mm)",
+       y = "Bill Length (mm)",
+       title = "Flipper and Bill Length",
+       subtitle = "For the Adele, Chinstrap, and Gentoo Penguins",
+       color = "Species",
+       shape = "Species") +
+  penguinTheme(changeLegendPos = TRUE)
+
+```
+
+### Flipper and Diet Plot
+
+```{r flipper diet plot}
+
+raw %>% 
+  pivot_longer(cols = nitro:carbon, names_to = "diet", values_to = "blood_amount") %>%
+  ggplot(aes(x = flipper_length_mm, y = blood_amount, color = species, shape = species)) +
+  geom_point(size = 2.5) +
+  labs(x = "Flipper Length (mm)",
+       y = "Blood Isotopic Amount",
+       title = "Flipper and Nutrient Amounts",
+       subtitle = "For the Adele, Chinstrap, and Gentoo Penguins",
+       color = "Species",
+       shape = "Species") +
+  facet_wrap(~diet, scales = "free") +
+  penguinTheme()
+
+```
+
+### Body Mass and Diet Plot
+
+```{r mass diet plot}
+
+raw %>% 
+  pivot_longer(cols = nitro:carbon, names_to = "diet", values_to = "blood_amount") %>%
+  ggplot(aes(x = body_mass_g, y = blood_amount, color = species, shape = species)) +
+  geom_point(size = 2.5) +
+  labs(x = "Body Mass (g)",
+       y = "Blood Isotopic Amount",
+       title = "Body Mass and Nutrient Amounts",
+       subtitle = "For the Adele, Chinstrap, and Gentoo Penguins",
+       color = "Species",
+       shape = "Species") +
+  facet_wrap(~diet, scales = "free") +
+  penguinTheme()
+
+```

@@ -1,0 +1,76 @@
+---
+title: "European Energy"
+author: "Jonathan Trattner"
+date: "8/4/2020"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    theme: journal
+    highlight: monochrome
+    code_folding: hide
+---
+```{r setup, include=FALSE}
+
+library(magick)
+library(tidytuesdayR)
+library(janitor)
+library(tidyverse)
+
+tuesdata <- tidytuesdayR::tt_load('2020-08-04')
+
+```
+
+```{r read data, warning = FALSE, message = FALSE}
+
+energyTypes <- tuesdata$energy_types %>%
+  pivot_longer(cols = c(`2016`, `2017`, `2018`), 
+               names_to = "year", 
+               values_to = "energy")
+countryTotals <- tuesdata$country_totals %>%
+  pivot_longer(cols = c(`2016`, `2017`, `2018`), 
+               names_to = "year", 
+               values_to = "energy") %>%
+  select(-level)
+
+```
+## Bulgaria's Energy Usage Plot
+```{r bulgaria}
+
+# Was gonna see about including Bulgarian flag but didn't have time.
+bulgarianFlag <- magick::image_read_svg('https://upload.wikimedia.org/wikipedia/commons/1/1e/Flag_of_Bulgaria_%28with_coat_of_arms%29.svg')
+
+energyTypes %>%
+  filter(country_name == "Bulgaria") %>%
+  mutate(energy = fct_reorder(as.factor(energy), energy)) %>%
+  ggplot(aes(x = country, y = energy, fill = type)) +
+  geom_col(position = position_dodge2(preserve = "single")) +
+  theme(plot.title = ggplot2::element_text(hjust=0.5, face = "bold.italic", size=16), #plot title aesthetics
+                   plot.subtitle = ggplot2::element_text(hjust = 0.5, face = "bold", size = 12), #plot subtitle aesthetics
+                   axis.title.x = ggplot2::element_text(size = 12, color= "black", face = "bold"), #x axis title aesthetics
+                   axis.title.y = ggplot2::element_text(size = 12, color= "black", face = "bold"), #y axis title aesthetics
+                   #legend aesthetics
+                   legend.text = ggplot2::element_text(size = 10,
+                                              color = "black",
+                                              face = "bold"),
+                   legend.text.align = 0,
+        legend.position = "bottom",
+        axis.text = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.title = element_blank(),
+        panel.background = element_rect(fill = "lavenderblush",
+                                        color = "black"),
+        strip.background = element_rect(fill = "lavenderblush1",
+                                        color = "black")) +
+  facet_wrap(~year) +
+  coord_polar("y") +
+  labs(y = "", x = "",
+       title = "Energy Use in Bulgaria",
+       subtitle = "2016-2018")
+
+```
