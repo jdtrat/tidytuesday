@@ -1,0 +1,203 @@
+---
+title: 'Avatar: The Last Airbender'
+author: "Jonathan Trattner"
+date: "8/11/2020"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    theme: journal
+    highlight: monochrome
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+#load packages
+library(tidyverse)
+library(tidytext)
+library(tidytuesdayR)
+library(janitor)
+library(tvthemes)
+library(extrafont)
+library(patchwork)
+import_avatar()
+loadfonts() #load fonts
+
+#get data
+tuesdata <- tidytuesdayR::tt_load('2020-08-11')
+avatar <- tuesdata$avatar
+sceneInfo <- tuesdata$scene_description
+
+```
+
+```{r explore}
+
+#sort the data for the final episode
+finale <- avatar %>% filter(str_detect(chapter, "Sozin"))
+
+#isolate Aang's fight with Ozai
+fight <- finale %>% filter(str_detect(chapter, "Avatar Aang")) %>% 
+  slice(17:33)
+
+avatarWordCount <- avatar %>% unnest_tokens(word, full_text) %>%
+  group_by(book_num, book, chapter_num) %>%
+  count(word)
+
+
+```
+
+```{r sentiment analysis}
+
+topTenCharacters <- avatar %>%
+  count(character, sort = TRUE) %>%
+  filter(character != "Scene Description") %>%
+  top_n(10) %>%
+  mutate(nation = case_when(character %in% c("Sokka", "Katara") ~ "Water",
+                            character %in% c("Zuko", "Iroh", "Azula", "Zhao") ~ "Fire",
+                            character %in% c("Toph", "Jet", "Suki") ~ "Earth",
+                            character == "Aang" ~ "Air"))
+
+avatarWords <- topTenCharacters %>%
+  left_join(avatar) %>%
+  unnest_tokens(word, character_words)
+
+sentimentWords <- get_sentiments("nrc") %>%
+  filter(sentiment %in% c("anger", "trust", "joy", "sadness"))
+
+avatarSentimentWords <- avatarWords %>%
+  left_join(sentimentWords) %>%
+  count(character, nation, sentiment) %>%
+  drop_na() %>%
+  group_by(character) %>%
+  mutate(percent = n / sum(n)) %>%
+  select(-n) %>%
+  ungroup()
+
+```
+
+```{r individual plots}
+
+fireNationPlot <- avatarSentimentWords %>%
+  filter(nation == "Fire") %>%
+  mutate(sentiment = fct_reorder(sentiment, percent)) %>%
+  ggplot(aes(x = "", y = percent, fill = sentiment)) +
+  scale_fill_avatar(palette = "FireNation") +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
+  labs(y = "") +
+  coord_polar("y") +
+  facet_wrap(~character, nrow = 1) +
+  theme_avatar(text.font = "Slayer",
+               legend.font = "Slayer",
+               title.font = "Slayer") +
+  theme(axis.title = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_blank(),
+        legend.title = element_blank(),
+        axis.ticks = element_blank(),
+        strip.text = element_text(size = 12))
+
+waterNationPlot <- avatarSentimentWords %>%
+  filter(nation == "Water") %>%
+  mutate(sentiment = fct_reorder(sentiment, percent)) %>%
+  ggplot(aes(x = "", y = percent, fill = sentiment)) +
+  scale_fill_avatar(palette = "WaterTribe") +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
+  labs(y = "") +
+  coord_polar("y") +
+  facet_wrap(~character) +
+  theme_avatar(text.font = "Slayer",
+               legend.font = "Slayer",
+               title.font = "Slayer") +
+  theme(axis.title = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_blank(),
+        legend.title = element_blank(),
+        axis.ticks = element_blank(),
+        strip.text = element_text(size = 12))
+
+earthNationPlot <- avatarSentimentWords %>%
+  filter(nation == "Earth") %>%
+  mutate(sentiment = fct_reorder(sentiment, percent)) %>%
+  ggplot(aes(x = "", y = percent, fill = sentiment)) +
+  scale_fill_avatar(palette = "EarthKingdom") +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
+  labs(y = "") +
+  coord_polar("y") +
+  facet_wrap(~character) +
+  theme_avatar(text.font = "Slayer",
+               legend.font = "Slayer",
+               title.font = "Slayer") +
+  theme(axis.title = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_blank(),
+        legend.title = element_blank(),
+        axis.ticks = element_blank(),
+        strip.text = element_text(size = 12))
+  
+airNationPlot <- avatarSentimentWords %>%
+  filter(nation == "Air") %>%
+  mutate(sentiment = fct_reorder(sentiment, percent)) %>%
+  ggplot(aes(x = "", y = percent, fill = sentiment)) +
+  scale_fill_avatar(palette = "AirNomads") +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
+  labs(y = "") +
+  coord_polar("y") +
+  facet_wrap(~character) +
+  theme_avatar(text.font = "Slayer",
+               legend.font = "Slayer",
+               title.font = "Slayer") +
+  theme(axis.title = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_blank(),
+        legend.title = element_blank(),
+        axis.ticks = element_blank(),
+        strip.text = element_text(size = 12))
+
+
+```
+
+```{r combining plots}
+
+ggdraw() +
+  draw_plot(fireNationPlot, y = -0.39, scale = 0.275) +
+  draw_plot(earthNationPlot, y = -0.135, scale = 0.275) +
+  draw_plot(waterNationPlot, y = 0.125, scale = 0.275) +
+  draw_plot(airNationPlot, y = 0.38, scale = 0.275) +
+  annotate("curve", x = 0.33, xend = 0.425, y = 0.86, yend = 0.65, arrow = arrow(length = unit(0.02, "npc"))) +
+  annotate("text", x = 0.33, y = 0.9, label = "Each chart illustrates emotionally \n charged words used by the character.") +
+  theme_avatar(text.font = "Slayer",
+               legend.font = "Slayer",
+               title.font = "Slayer") +
+  theme(axis.title = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_blank(),
+        legend.title = element_blank(),
+        axis.ticks = element_blank(),
+        strip.text = element_text(size = 12)) +
+plot_annotation(title = "Avatar: The Last Airbender",
+                subtitle = "Ten Most Frequent Characters",
+                theme = theme_avatar(legend.font = "Slayer",
+                                     title.font = "Slayer") +
+                  theme(plot.title = element_text(hjust = 0.5),
+                        plot.subtitle = element_text(hjust = 0.5),
+                        plot.caption = element_text(hjust = 0.5)),
+                caption = "@jdtrat | #tidytuesday Week 33")
+
+
+ggsave('avatar_emotional_analysis.png')
+
+
+```
